@@ -1,0 +1,99 @@
+Tutorial of install CloudCompare
+
+Install CMake > 3.0
+
+Install Qt 5.9.0
+http://download.qt.io/official_releases/qt/5.9/5.9.1/qt-opensource-windows-x86-5.9.1.exe
+
+Install visualstudio add-in tool
+https://marketplace.visualstudio.com/items?itemName=TheQtCompany.QtVisualStudioTools-19123
+
+
+Download and install PCL libarary for vs 2017
+https://github.com/PointCloudLibrary/pcl/releases
+
+CMake (step by step)
+set QT root: 
+D:/Qt/Qt5.9.1/5.9.1/msvc2017_64
+
+Remember CMake using VS2017 win64
+
+Successfully built. build ALL_BUILD, and then INSTALL successful. 
+
+PCL libarary problem, it may be caused by vs compiled libarary (not VS2017).
+
+Now try to compile PCL from source code
+http://pointclouds.org/documentation/tutorials/compiling_pcl_windows.php#compiling-pcl-windows
+https://blog.csdn.net/wokaowokaowokao12345/article/details/51695331
+1) Boost: Use prebuilt
+2) Eigen: Header library, directly copy
+3) Flann: 
+Download 1.8.4, CMake add Entry:
+ 
+Name:	CMAKE_DEBUG_POSTFIX
+Type:	STRING
+Value:	-gd
+
+
+In (flann-1.8.4-src\src\cpp\flann\util\serialization.h)
+line 92, add:
+
+#ifdef _MSC_VER
+BASIC_TYPE_SERIALIZER( unsigned __int64 );
+#endif
+
+https://gist.github.com/UnaNancyOwen/1e3fced09e4430ad0b7b
+
+4) OpenNI2: installed
+5) QHULL: Download from Github.
+6) VTK:
+https://www.vtk.org/download/
+https://www.vtk.org/Wiki/VTK/Configure_and_Build
+
+enable QT
+VTK_Group_Qt:BOOL=ON
+QT_QMAKE_EXECUTABLE:PATH=C:/path/to/qt-5.2.1-install/5.2.1/msvc2010/bin/qmake.exe
+
+CMAKE_PREFIX_PATH
+QTpath
+
+Name:	CMAKE_DEBUG_POSTFIX
+Type:	STRING
+Value:	-gd
+
+Error 1: ‘class vtkUnsignedCharArray’ has no member named ‘InsertNextTupleValue’
+https://github.com/PointCloudLibrary/pcl/issues/2060
+
+
+Error 2: '_beginthreadex':identifier not found
+Reason: Microsoft visual studio has "process.h" file, VTK also has one (include file is not CASE SENSATIVE)
+Solution:
+1. Remove VTK, failed
+2. find process.h path, add this path as YUAN_INCLUDE_DIR using CMAKE gui.
+C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/SDK/ScopeCppSDK/SDK/include
+#Added by Yuan
+include_directories(${YUAN_INCLUDE_DIRS})
+Change the headerfile: <crtf/process.h>
+
+Error 3: disable libUSB. 
+
+Error 4: project pcl_surface has external linking error because of QHULL. 
+Recompile QHULL, manully add qhullstatic_d.lib into pcl_surface project. 
+https://github.com/PointCloudLibrary/pcl/issues/952
+
+
+Add bin files into system Path
+D:\Yuan\pcl-3rdparty\VTK\bin
+D:\Yuan\pcl-3rdparty\Flann\bin
+D:\Yuan\pcl-3rdparty\QHull\bin
+D:\PCL\bin
+C:\Program Files\OpenNI2\Tools
+
+
+
+After PCL is installed, configure cloudcompare in CMAKE, 
+add BOOST_ROOT in CMAKE
+add YUAN_INCLUDE_DIRS in CMAKE
+C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/SDK/ScopeCppSDK/SDK/include
+
+Build CloudCompare, Success!

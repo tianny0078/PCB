@@ -1,0 +1,26 @@
+1. Duplicate project 
+1.1 copy folder qCC and rename it to be pcb
+1.2 change CMakeList.txt in the cloudcompare folder and pcb folder
+add PCB3DMEASUREMENT_DEST_FOLDER
+add add_subdirectory( pcb )
+1.3 Error: plugin cannot be installed, change plugin/CMakePluginTpl.cmake
+add PCB3DMEASUREMENT_DEST_FOLDER into install settings
+1.4?? Unsolved issue: pcl dlls cannot be installed (does not influcen the final execuation)
+2. KeyEvent start
+After testing, the only key pressing event accepted is 1, 3. 
+Using key 1 as the input.
+
+3. KeyEvent read from txt file
+// simplify the pipeline
+3.1 add sor filtering
+3.2 directly computing the result
+3.3 filter by value
+3.4 label connected component
+3.5 filter by threshold
+
+RAC: 
+Residential Air Conditioner Division
+CAC:
+Commercial Air Conditioner Division
+CSC:
+installation auto checking
