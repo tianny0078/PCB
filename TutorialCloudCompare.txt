@@ -1,4 +1,4 @@
-Tutorial of install CloudCompare
+﻿Tutorial of install CloudCompare
 
 Install CMake > 3.0
 
@@ -97,3 +97,13 @@ add YUAN_INCLUDE_DIRS in CMAKE
 C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/SDK/ScopeCppSDK/SDK/include
 
 Build CloudCompare, Success!
+
+0430:
+needs to incoporate CGAL library. 
+
+Build CGAL: download source code from CGAL website.
+https://www.cgal.org/download/windows.html#GeneralPrerequisites
+Based on reference, go to github to download CGAL-4.11-Setup.exe (which only contains src and auxiliary files--- precompiled gmp)
+https://blog.csdn.net/eloudy/article/details/78061701
+
+Don't add postfix '-gd' since it's already there.
