@@ -5799,16 +5799,11 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 			// display
 			ccConsole::Print("PCB 3D measurement starting...");
 
-			pcbInitialization();
-			pcbSORfiltering();
-			pcbDistanceComputation();
-			pcbFilterByValue();
-			pcbLabelConnectedComponents();
-
-			refreshAll();
-			updateUI();
+			// first version with point to point abosulote values
+			//pcbMeasureC2C();
 			
-
+			// second version with point to mesh distance (with signs)
+			pcbMeasureC2M();
 
 			// show information in console
 			//QMainWindow::statusBar()->showMessage(QString("Ready"));
@@ -10549,7 +10544,7 @@ void MainWindow::pcbSORfiltering() {
 
 }
 
-void MainWindow::pcbDistanceComputation() {
+void MainWindow::pcbDistanceComputationC2C() {
 	// distance computation
 	if (!m_selectedEntities[0]->isKindOf(CC_TYPES::POINT_CLOUD) ||
 		!m_selectedEntities[1]->isKindOf(CC_TYPES::POINT_CLOUD))
@@ -10576,7 +10571,75 @@ void MainWindow::pcbDistanceComputation() {
 	m_ccRoot->unselectEntity(refCloud);
 }
 
-void MainWindow::pcbFilterByValue() {
+void MainWindow::pcbDistanceComputationC2M()
+{
+	if (getSelectedEntities().size() != 2)
+	{
+		ccConsole::Error("Select 2 entities!");
+		return;
+	}
+	/*
+	bool isMesh[2] = { false,false };
+	unsigned meshNum = 0;
+	unsigned cloudNum = 0;
+	for (unsigned i = 0; i < 2; ++i)
+	{
+		if (m_selectedEntities[i]->isKindOf(CC_TYPES::MESH))
+		{
+			++meshNum;
+			isMesh[i] = true;
+		}
+		else if (m_selectedEntities[i]->isKindOf(CC_TYPES::POINT_CLOUD))
+		{
+			++cloudNum;
+		}
+	}
+
+	if (meshNum == 0)
+	{
+		ccConsole::Error("Select at least one mesh!");
+		return;
+	}
+	else if (meshNum + cloudNum < 2)
+	{
+		ccConsole::Error("Select one mesh and one cloud or two meshes!");
+		return;
+	}
+	*/
+	ccHObject* compEnt = m_selectedEntities[0];
+	ccGenericMesh* refMesh = ccHObjectCaster::ToGenericMesh(m_selectedEntities[1]);
+	/*
+	if (meshNum == 1)
+	{
+		compEnt = m_selectedEntities[isMesh[0] ? 1 : 0];
+		refMesh = ccHObjectCaster::ToGenericMesh(m_selectedEntities[isMesh[0] ? 0 : 1]);
+	}
+	else
+	{
+		ccOrderChoiceDlg dlg(m_selectedEntities[0], "Compared",
+			m_selectedEntities[1], "Reference",
+			this);
+		if (!dlg.exec())
+			return;
+
+		compEnt = dlg.getFirstEntity();
+		refMesh = ccHObjectCaster::ToGenericMesh(dlg.getSecondEntity());
+	}
+	*/
+	
+	//assert(!m_compDlg);
+	if (m_compDlg)
+		delete m_compDlg;
+	m_compDlg = new ccComparisonDlg(compEnt, refMesh, ccComparisonDlg::CLOUDMESH_DIST, this);
+	connect(m_compDlg, &QDialog::finished, this, &MainWindow::deactivateComparisonMode);
+	//m_compDlg->show();
+	m_compDlg->computeDistances();
+	m_compDlg->applyAndExit();
+	refMesh->setEnabled(false);
+	m_ccRoot->unselectEntity(refMesh);
+}
+
+void MainWindow::pcbFilterByValue(ScalarType minVal, ScalarType maxVal, bool flagInside) {
 	typedef std::pair<ccHObject*, ccPointCloud*> entityAndVerticesType;
 	std::vector<entityAndVerticesType> toFilter;
 
@@ -10628,8 +10691,8 @@ void MainWindow::pcbFilterByValue() {
 	}
 	}
 	*/
-	ScalarType minVal = 2.0; // mm
-	ScalarType maxVal = 15.0; // mm
+	//ScalarType minVal = 2.0; // mm
+	//ScalarType maxVal = 15.0; // mm
 
 	ccHObject::Container results;
 	{
@@ -10688,8 +10751,8 @@ void MainWindow::pcbFilterByValue() {
 				resultInside->setDisplay(ent->getDisplay());
 				resultInside->prepareDisplayForRefresh();
 				addToDB(resultInside);
-
-				results.push_back(resultInside);
+				if(flagInside)
+					results.push_back(resultInside);
 			}
 			if (resultOutside)
 			{
@@ -10699,7 +10762,8 @@ void MainWindow::pcbFilterByValue() {
 				resultOutside->setName(resultOutside->getName() + ".outside");
 				addToDB(resultOutside);
 
-				//results.push_back(resultOutside);
+				if(!flagInside)
+					results.push_back(resultOutside);
 			}
 		}
 	}
@@ -10852,4 +10916,115 @@ void MainWindow::pcbLabelConnectedComponents() {
 			}
 		}
 	}
+}
+
+void MainWindow::pcbComputeMesh() {
+	//ask the user for the max edge length
+	static double s_meshMaxEdgeLength = 2.0; // 2.0mm at most
+	//{
+	//	bool ok = true;
+	//	double maxEdgeLength = QInputDialog::getDouble(this, "Triangulate", "Max edge length (0 = no limit)", s_meshMaxEdgeLength, 0, 1.0e9, 8, &ok);
+	//	if (!ok)
+	//		return;
+	//	s_meshMaxEdgeLength = maxEdgeLength;
+	//}
+
+	//select candidates
+	ccHObject::Container clouds;
+	bool hadNormals = false;
+	{
+		ccHObject *entity = m_selectedEntities[0];
+		{
+			if (entity->isKindOf(CC_TYPES::POINT_CLOUD))
+			{
+				clouds.push_back(entity);
+				if (entity->isA(CC_TYPES::POINT_CLOUD))
+				{
+					hadNormals |= static_cast<ccPointCloud*>(entity)->hasNormals();
+				}
+			}
+		}
+	}
+
+	//if the cloud(s) already had normals, ask the use if wants to update them or keep them as is (can look strange!)
+	bool updateNormals = false;
+	if (hadNormals)
+	{
+		updateNormals = (QMessageBox::question(this,
+			"Keep old normals?",
+			"Cloud(s) already have normals. Do you want to update them (yes) or keep the old ones (no)?",
+			QMessageBox::Yes,
+			QMessageBox::No) == QMessageBox::Yes);
+	}
+
+	ccProgressDialog pDlg(false, this);
+	pDlg.setAutoClose(false);
+	pDlg.setWindowTitle(tr("Triangulation"));
+	pDlg.setInfo(tr("Triangulation in progress..."));
+	pDlg.setRange(0, 0);
+	pDlg.show();
+	QApplication::processEvents();
+
+	bool errors = false;
+	for (size_t i = 0; i < clouds.size(); ++i)
+	{
+		ccHObject* ent = clouds[i];
+		assert(ent->isKindOf(CC_TYPES::POINT_CLOUD));
+
+		//compute mesh
+		ccGenericPointCloud* cloud = ccHObjectCaster::ToGenericPointCloud(ent);
+		ccMesh* mesh = ccMesh::Triangulate(cloud,
+			DELAUNAY_2D_BEST_LS_PLANE,
+			updateNormals,
+			static_cast<PointCoordinateType>(s_meshMaxEdgeLength),
+			2 //XY plane by default
+		);
+		if (mesh)
+		{
+			cloud->setVisible(false); //can't disable the cloud as the resulting mesh will be its child!
+			cloud->addChild(mesh);
+			cloud->prepareDisplayForRefresh_recursive();
+			addToDB(mesh);
+			m_ccRoot->unselectEntity(cloud);
+			if (i == 0)
+			{
+				m_ccRoot->selectEntity(mesh, true); //auto-select first element
+			}
+		}
+		else
+		{
+			errors = true;
+		}
+	}
+
+	if (errors)
+	{
+		ccConsole::Error("Error(s) occurred! See the Console messages");
+	}
+
+}
+
+void MainWindow::pcbMeasureC2C() {
+	pcbInitialization();
+	pcbSORfiltering();
+	pcbDistanceComputationC2C();
+	pcbFilterByValue();
+	pcbLabelConnectedComponents();
+
+	refreshAll();
+	updateUI();
+}
+
+void MainWindow::pcbMeasureC2M() {
+	pcbInitialization();
+	pcbSORfiltering();
+	pcbComputeMesh();
+	pcbDistanceComputationC2M();
+	//pcbFilterByValue();
+	//pcbLabelConnectedComponents();
+	// testing
+	//ccHObject* ent = m_selectedEntities[0];
+	//m_ccRoot->unselectEntity(ent);
+	refreshAll();
+	updateUI();
 }

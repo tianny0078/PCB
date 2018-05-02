@@ -171,13 +171,21 @@ public:
 	void updatePropertiesView();
 
 private:
+	//////////////////////////////////////////////////////////////////////////
 	// added by Yuan Tian, this is for the pcb 3d measurement
+	//////////////////////////////////////////////////////////////////////////
 	void pcbInitialization();
 	void pcbSORfiltering();
-	void pcbDistanceComputation();
-	void pcbFilterByValue();
+	void pcbComputeMesh();
+	void pcbDistanceComputationC2C();
+	void pcbDistanceComputationC2M();
+	void pcbFilterByValue(ScalarType minVal = 1.0, ScalarType maxVal = 15.0, bool inside = true);
 	void pcbLabelConnectedComponents();
 
+	// cloud-to-cloud measurement
+	void pcbMeasureC2C();
+	// cloud-to-mesh measurement
+	void pcbMeasureC2M();
 private slots:
 
 	//! Creates a new 3D GL sub-window
